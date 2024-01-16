@@ -1,32 +1,63 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { Food } from "../services/food";
+import debounce from "just-debounce-it";
+import { ListFoods } from "./listFood";
 export const Buscador = () => {
   const [search, setSearch] = useState("");
   const [error, setError] = useState(null);
-  const [existCat, setExistCat] = useState();
+  const [existFood, setExistFood] = useState();
   const [foods, setFoods] = useState([]);
-  const handleSubmit = (event) => {
-    event.preventDefault();
-    getArrayFoods({ search })
-  };
-  const handleChange = (event) => {
-    const newQuery = event.target.value;
-    if (newQuery == " ") return;
-    setSearch(event.target.value);
-  };
+  const firstInput = useRef(true)
   useEffect(() => {
+    if (firstInput.current) {
+      firstInput.current = search === ''
+      return
+    }
     if (search.match(/^\d+$/)) {
       setError("No se puede buscar una película con un número");
       return;
     }
+    if (search.length == 0) {
+      setError("No se puede buscar un producto vacio")
+      return;
+    }
+    if(foods.length == 0){
+      setError("No se encontraron productos")
+      return;
+    }
+    setError(null)
   });
+
   const getArrayFoods = async ({ search }) => {
-    let getFoodsJson = await Food({ search });
+    let getFoodsJson = await Food( search );
     console.log(getFoodsJson);
-    let gatos = getFoodsJson;
-    let gato = gatos?.length > 0;
-    setFoods(gatos);
-    setExistCat(gato);
+    let foodArray = getFoodsJson;
+    let foodExist = foodArray?.length > 0;
+    
+    setFoods(foodArray);
+    setExistFood(foodExist);
+
+  };
+
+  const debouncedGetMovies = useCallback(
+    debounce((search) => {
+      console.log("search", search);
+      getArrayFoods({ search });
+    }, 300)
+    , []
+  );
+  
+  const handleChange = (event) => {
+    const newQuery = event.target.value;
+    if (newQuery == " ") return;
+    setSearch(event.target.value);
+    if ( newQuery == "") return
+    debouncedGetMovies({ search: newQuery });
+  };
+
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    getArrayFoods({ search });
   };
   return (
     <header className="flex flex-col items-center justify-items-center h-full bg-cover bg-cyan-950 min-h-screen pt-3">
@@ -48,23 +79,10 @@ export const Buscador = () => {
           Enviar
         </button>
       </form>
-      {error && <p style={{ color: "red" }}>{error}</p>}
-      <button onClick={getArrayFoods}>pedir gatos</button>
-      {existCat ? (
-        <div className="cols">
-          {foods.map((cat) => (
-            <div
-              key={cat.id}
-              className="flex flex-col items-center justify-items-center bg-gray-400 rounded-3xl"
-            >
-              <img src={cat.img} alt="imagen de gato" height="100px" />
-
-              <p>{cat.title}</p>
-            </div>
-          ))}
-        </div>
+{/*       {error && <p style={{ color: "red" }}>{error}</p>}
+ */}      {existFood ? (<ListFoods foods={foods} />
       ) : (
-        <p>no funciona</p>
+        <p style={{ color: "red" }}>{error}</p>
       )}
     </header>
   );
